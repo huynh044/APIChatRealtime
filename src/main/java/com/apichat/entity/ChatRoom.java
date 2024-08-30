@@ -29,6 +29,9 @@ public class ChatRoom {
     @OneToMany(mappedBy = "chatRoom")
     private Set<Message> messages;
     
+    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ChatRoomUserRole> userRoles;
+    
     boolean isPrivate;
 
     @ManyToMany

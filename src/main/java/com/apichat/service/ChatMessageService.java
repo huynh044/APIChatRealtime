@@ -10,6 +10,7 @@ import com.apichat.dto.request.GroupRequest;
 import com.apichat.dto.request.MessageRequest;
 import com.apichat.dto.response.MessageResponse;
 import com.apichat.entity.*;
+import com.apichat.enums.RoleForRoom;
 import com.apichat.exception.AppException;
 import com.apichat.exception.ErrorCode;
 import com.apichat.mapping.MessMapper;
@@ -35,6 +36,7 @@ class ChatMessageServiceImpl implements ChatMessageService{
 	UserChatRoomRepository userChatRoomRepository;
 	SimpMessagingTemplate simpMessagingTemplate;
 	MessMapper messMapper;
+	ChatRoomUserRoleRepository chatRoomUserRoleRepository;
 	@Override
 	public void sendMessageToUser(MessageRequest request) {
 		var context = SecurityContextHolder.getContext();
@@ -102,18 +104,31 @@ class ChatMessageServiceImpl implements ChatMessageService{
         chatRoom.setName(name);
         chatRoom.setPrivate(false);
         chatRoom.setUsers(users);
-        chatRoom = chatRoomRepository.save(chatRoom);
+        ChatRoomUserRole chatRoomUserRole = new ChatRoomUserRole();
+        chatRoomUserRole.setChatRoom(chatRoom);
+        chatRoomUserRole.setUser(user);
+        chatRoomUserRole.setId(new ChatRoomUserRoleId(user.getUid(), chatRoom.getId()));
+        chatRoomUserRole.setRole(RoleForRoom.OWNER);
+        chatRoomRepository.save(chatRoom);
+        chatRoomUserRoleRepository.save(chatRoomUserRole);
 		
 	}
 
 	@Override
 	public void addMemberToGroup(GroupRequest request) {
-		ChatRoom room = chatRoomRepository.findById(request.getRoom_id()).orElseThrow(()->new AppException(ErrorCode.ROOM_NOT_EXISTED));
-		User user = userRepository.findById(request.getUid()).orElseThrow(()->new AppException(ErrorCode.USER_NOT_EXISTED));
-		Set<User> users = room.getUsers();
-		for (User user2 : users) {
-			if(user2 != user) users.add(user); return;
-		}
-		
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+	    User currentUser = userRepository.findByUsername(username)
+	            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+	    ChatRoom chatRoom = chatRoomRepository.findById(request.getRoom_id())
+	            .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_EXISTED));
+
+	    ChatRoomUserRole currentUserRole = chatRoomUserRoleRepository.findByUserAndChatRoom(currentUser, chatRoom)
+	            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_IN_ROOM));
+
+	    User newMember = userRepository.findById(request.getUid())
+	            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+	    ChatRoomUserRole newMemberRole = new ChatRoomUserRole(new ChatRoomUserRoleId(newMember.getUid(), chatRoom.getId()), newMember, chatRoom, RoleForRoom.MEMBER);;
+	    chatRoomUserRoleRepository.findByUserAndChatRoom(newMember, chatRoom).orElse(chatRoomUserRoleRepository.save(newMemberRole));
 	}
 }

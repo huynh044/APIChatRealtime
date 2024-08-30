@@ -16,4 +16,5 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, String> {
 	           "AND EXISTS " +
 	           "(SELECT ucr FROM UserChatRoom ucr WHERE ucr.chatRoom = c AND ucr.user.uid = :user2Id)")
 	    Optional<ChatRoom> findChatRoomBetweenUsers(@Param("user1Id") String user1Id, @Param("user2Id") String user2Id);
+	
 }
